@@ -170,12 +170,34 @@ class AnalizadorSUBE:
         print(dias_por_mes)
         print(promedio)
     
+    def orden_medios_transporte(self, anio:int):
+        totales = {}
+        datos_filtrados = list(filter(lambda x: int(x['indice_tiempo'][:4]) == anio, self.datos))
+        for transporte in self.medios_transporte:
+            lista_transporte = list(map(lambda x: int(x[transporte]), datos_filtrados))
+            suma_transporte = sum(lista_transporte)
+            totales[transporte] = suma_transporte
+        totales_ordenados = sorted(totales, key= totales.get)
+        print(f'Los medios de transporte utilizados según su uso, de menor a mayor son {totales_ordenados}') #esto me devuelve solo las keys
+
+        totales_ordenados_items = sorted(totales.items(), key = lambda x: x[1])
+        print(f'Los medios de transporte utilizados, ordenados según su uso son {totales_ordenados_items}') #esto me devuelve cada item con su valor
+
+        return totales_ordenados_items
+
 
 if __name__ == "__main__":
-    analizador = AnalizadorSUBE("total-usuarios-por-dia.csv")
-
-    if analizador.datos:
-        # analizador.analisis_uso_lancha(2020, 'lancha')
-        # analizador.analisis_mes_ingresado(2020, 1)
-        # analizador.tendencias_mensuales()
-        analizador.promedio_usuarios_mensual()
+    try:
+        analizador = AnalizadorSUBE("total-usuarios-por-dia.csv")
+        if analizador.datos:
+            # analizador.analisis_uso_lancha(2020, 'lancha')
+            # analizador.analisis_mes_ingresado(2020, 1)
+            # analizador.tendencias_mensuales()
+            # analizador.promedio_usuarios_mensual()
+            analizador.orden_medios_transporte(2021)
+    except FileNotFoundError as e:
+        print("No se ha encontrado el archivo. El error es", e)
+    except ValueError as e:
+        print("Error en el valor ingresado.", e)
+    except Exception as e:
+        print("Hay un error en el código.", e)
