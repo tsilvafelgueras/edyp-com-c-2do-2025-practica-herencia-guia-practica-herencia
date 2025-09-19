@@ -21,11 +21,13 @@ class Libro:
     posibles_estados = ["disponible", "prestado"]
     contador_libros = 0
 
-    def __init__(self, titulo: str, autor:str, editorial:str, ISBN: str, estado= 'disponible'):
-        self.titulo = self.validar_cadena(titulo)
+    def __init__(self, titulo: str, autor:str, editorial:str, ISBN: str, anio_publicacion:int, genero:str, estado= 'disponible'):
+        self.titulo = self.validar_cadena(titulo) 
         self.autor = self.validar_cadena(autor)
         self.editorial = self.validar_cadena(editorial)
         self.ISBN = ISBN
+        self.anio_publicacion = self.validar_entero(anio_publicacion)
+        self.genero = self.validar_cadena(genero)
         self.estado = self.setter_estado(estado)
         self.veces_prestado = 0
         Libro.contador_libros += 1
@@ -57,6 +59,12 @@ class Libro:
 
     def get_editorial(self):
         return self.editorial
+    
+    def get_anio(self):
+        return self.anio_publicacion
+    
+    def get_genero(self):
+        return self.genero
     
     #MÉTODOS SETTER
     def setter_estado(self, estado):
@@ -100,6 +108,13 @@ class Libro:
         if len(cadena)<1:
             raise ValueError(f"{cadena} no puede ser una cadena vacía")
         return cadena
+    
+    def validar_entero(self, numero):
+        if not isinstance(numero, int):
+            raise TypeError(f"{numero} debe ser un número entero")
+        if numero <= 0:
+            raise ValueError(f'El número debe ser mayor a 0')
+        return numero
     
     def ver_informacion_libro(self):
         if self.estado == 'disponible':
@@ -150,25 +165,25 @@ class Usuario:
         self._nombre = valor.strip() #le borra los espacios de atrás y adelante
 
     def pedir_libro_prestado(self, libro:Libro):
-        isbn = libro.get_isbn()
+        isbn = libro.getter_ISBN()
         if isbn in self.__libros_prestados:
             raise ValueError("El usuario ya tiene este libro prestado.")
 
         # Intentar prestar el libro
         try:
-            libro.prestar()
+            libro.prestar_libro()
             self.__libros_prestados[isbn] = libro
         except ValueError as e:
             raise ValueError(f"No se pudo prestar el libro: {e}")
     
     def devolver_libro_prestado(self, libro:Libro):
-        isbn = libro.get_isbn()
+        isbn = libro.getter_ISBN()
         if isbn not in self.__libros_prestados:
             raise ValueError("El usuario no tiene este libro prestado.")
 
         # Intentar devolver el libro
         try:
-            libro.devolver()
+            libro.devolver_libro()
             del self.__libros_prestados[isbn]
         except ValueError as e:
             raise ValueError(f"No se pudo devolver el libro: {e}")
@@ -211,12 +226,10 @@ class Biblioteca:
         if isbn not in self.__libros:
             print("No se encontró un libro con este ISBN")
             return
-
         libro = self.__libros[isbn]
         if not libro.get_disponible():
             print("No se puede eliminar: el libro está prestado")
             return
-
         del self.__libros[isbn]
 
     def buscar_libro(self, isbn:str):
@@ -227,13 +240,12 @@ class Biblioteca:
         if not libro:
             print(f"No se encontró un libro con este ISBN {isbn}")
             return
-        
         libro.set_titulo(titulo)
         libro.set_autor(autor)
         libro.set_editorial(editorial)
 
     def agregar_usuario(self, usuario:Usuario):
-        dni = usuario.get_dni()
+        dni = usuario.dni
         if dni in self.__usuarios:
             print("El usuario con este DNI ya existe en la biblioteca")
             return
@@ -267,7 +279,6 @@ class Biblioteca:
         usuario.nombre = nombre
     
     #métodos de gestión de préstamos
-
     def prestar_libro(self, dni_usuario:str, isbn_libro:str):
         usuario = self.buscar_usuario(dni_usuario)
         if not usuario:
@@ -382,7 +393,7 @@ class Biblioteca:
         for libro in libros_a_eliminar:
             print(f'{libro.get_titulo()}\n')
         
-        eleccion = input(f"Desea eliminar los {len(libros_a_eliminar)} libros? Responda con si/no.")
+        eleccion = input(f"Desea eliminar los {len(libros_a_eliminar)} libros? Responda con si/no.\t")
         if eleccion.lower() == 'si':
             for libro in libros_a_eliminar:
                 isbn = libro.getter_ISBN()
@@ -390,6 +401,7 @@ class Biblioteca:
             print("Los libros han sido eliminados exitosamente.")
         else:
             print("La operación ha sido cancelada, no se ha eliminado ningún libro.")
+            return libros_a_eliminar
     
     def promedio_prestados(self): #chequear si esta bien, o si lo correcto sería por usuarios que se llevaron libros
         conteo_prestados = 0
@@ -410,6 +422,111 @@ class Biblioteca:
                 promedio = conteo_prestados / cantidad_usuarios
                 print(f"Promedio Prestados: {promedio}")
                 return promedio
-    
 
-# if __name__ == "__main__":
+    def libro_antiguo_prestado(self):
+        for usuario in self.__usuarios.values():
+            libros_prestados = usuario.get_libros_prestados()
+
+            if not libros_prestados:
+                print(f"Usuario: {usuario.nombre}, libro: N/A, año: N/A")
+            else:
+                isbn_libro_antiguo = min(libros_prestados, key = (lambda isbn: libros_prestados[isbn].get_anio()))
+                libro_antiguo = libros_prestados[isbn_libro_antiguo]
+                print(f"Usuario: {usuario.nombre}, libro: {libro_antiguo.get_titulo()}, año: {libro_antiguo.get_anio()}")
+
+    def lista_generos(self):
+        conteo_generos = {}
+        for libro in self.__libros.values():
+            genero = libro.get_genero()
+            prestamo = libro.veces_prestado
+            conteo_generos[genero] = conteo_generos.get(genero, 0) + prestamo
+
+        lista_ordenada = sorted(conteo_generos.items(), key = lambda item: item[1], reverse= True)
+        for genero, total_prestamos in lista_ordenada:
+            print(f'Genero: {genero}, Total Prestamos: {total_prestamos}')
+        
+        top_3 = lista_ordenada[:3]
+        eleccion = input("Desea agregar más ejemplares de esos géneros? Si/no.\t")
+
+        if eleccion.lower() == "si":
+            for genero, total_prestamos in lista_ordenada:
+                titulo = input(f"Ingrese el titulo del libro perteneciente al genero {genero}:")
+                autor = input("Ingrese el autor: ")
+                editorial = input("Ingrese la editorial: ")
+                isbn = input("Ingrese el ISBN: ")
+                anio = int(input("Ingrese el año de publicación: "))
+                nuevoLibro = Libro(titulo, autor, editorial, isbn, anio, genero)
+                self.agregar_libro(nuevoLibro)
+                print("Se ha agregado exitosamente el libro.")
+        else:
+            print("No se agregarán nuevos ejemplares.")
+
+
+if __name__ == "__main__":
+    try:
+        biblioteca = Biblioteca("Biblioteca Facultad")
+
+        # libro1 = Libro('Cien años de soledad', 'Gabriel Garcia Marquez', 'Sudamericana', '1234567', 1970, "Ficcion")
+        # libro2 = Libro('La meta', 'Alex Row', 'America', '2345678', 2000, "Ficcion")
+        # libro3 = Libro('Biografía de Napoleon', 'NN', 'Francia', '456351', 1980, "Memorialistico")
+        # libro4 = Libro('Estadística', 'ITBA', 'Argentina', '849279', 2015, "Academico", 'prestado')
+        # libro5 = Libro("Biografía de San Martin", "NN", "Argentina", '253452', 1985, "Memorialistico")
+        # libro6 = Libro("Harry Potter", "JK Rowling", "Inglesa", "412315", 1999, "Ficcion")
+        # libro7 = Libro("El amor en tiempos de cólera", "Gabriel Garcia Marquez", "Sudamericana", '234145', 1985, "Romance")
+
+        # usuario1 = Usuario("Mora", "123525")
+        # usuario2 = Usuario("Mateo", "124254")
+        # usuario3 = Usuario("Lola", "353245")
+
+        # #agregar libros y usuarios a la biblioteca
+        # biblioteca.agregar_libro(libro1)
+        # biblioteca.agregar_libro(libro2)
+        # biblioteca.agregar_libro(libro3)
+        # biblioteca.agregar_libro(libro4)
+        # biblioteca.agregar_libro(libro5)
+        # biblioteca.agregar_libro(libro6)
+        # biblioteca.agregar_libro(libro7)
+
+        # biblioteca.agregar_usuario(usuario1)
+        # biblioteca.agregar_usuario(usuario2)
+        # biblioteca.agregar_usuario(usuario3)
+
+        # #demostrar funcionalidades
+        # print(biblioteca)
+        # print(biblioteca.listar_libros())
+        # print(biblioteca.listar_usuarios())
+        
+        # # Realizar préstamos
+        # print("\n--- Realizando préstamos ---")
+        # biblioteca.prestar_libro("123525", '1234567')
+        # biblioteca.prestar_libro("124254", "2345678")
+        # biblioteca.prestar_libro("353245", '849279')
+
+        # print("\nLibros después de los préstamos:")
+        # print(biblioteca.listar_libros())
+
+        # print("\nLibros prestados a Mora:")
+        # print(usuario1.ver_libros_prestados())
+
+        # # Devolver un libro
+        # print("\n--- Devolviendo libro ---")
+        # biblioteca.devolver_libro("353245", '849279')
+
+        # print("\nGestionar libros no prestados:")
+        # biblioteca.gestionar_libros_no_prestados()
+
+        # print("\nPromedio prestadps:")
+        # biblioteca.promedio_prestados()
+
+        # print("\nReporte libro más antiguo por usuario:")
+        # biblioteca.libro_antiguo_prestado()
+
+        # print("\nGeneros más populares:")
+        # biblioteca.lista_generos()
+        print(biblioteca.listar_libros())
+    except ValueError as e:
+        print("El error es:", e)
+    except TypeError as e:
+        print("Ha habido un error en el tipo de dato:", e)
+    except Exception as e:
+        print("Hay un error en el código:", e)
